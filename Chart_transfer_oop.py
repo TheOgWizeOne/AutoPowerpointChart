@@ -10,11 +10,11 @@ Dependent on chart_type_data.py file which contains PPT chart type data.
 """
 #import library and library files
 from string import Template
-from numpy.testing._private.utils import print_assert_equal
+#from numpy.testing._private.utils import print_assert_equal
 import pandas as pd
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
-from pptx.enum.chart import XL_CHART_TYPE
+#from pptx.enum.chart import XL_CHART_TYPE
 from pptx.util import Inches
 import tkinter as tk
 from tkinter import *
@@ -24,6 +24,7 @@ import os
 
 # Import dictionary files that contain chart type data for ppt - these contain all the chart types PPT uses to make it universal
 from chart_type_data import chart_type_dict, chart_template_dict
+
 
 class filelocations:
     """class to import defaults and store file locations and values for individual chart templates
@@ -88,12 +89,12 @@ class MainApp(tk.Tk):
         self.buttons = []
 
         #Make labels for top of cols
-        self.make_label("Defaults",2,0,150)
-        self.make_label("File locations (editable)",2,1,150)
+        self.make_label("Defaults",2,0,150,bg_col="skyblue")
+        self.make_label("File locations (editable)",2,1,150,bg_col="skyblue")
 
         # Make the static buttons for editing default file locations
         self.make_button("Press here to start transfer",self.transfer_all,0,0,bg_col="red")
-        self.make_button("Toggle show file locations",self.show_files,0,1,bg_col="black")  
+        self.make_button("Toggle show file names",self.show_files,0,1,bg_col="black")  
         self.make_button(self.all_files.template_name,self.choose_template,3,1)
         self.make_button(self.all_files.data_name,self.choose_data,4,1)
         self.make_button(self.all_files.output_name,self.choose_output,5,1)
@@ -107,14 +108,14 @@ class MainApp(tk.Tk):
         #Make menu for layout number
         self.clicked = IntVar()
         self.clicked.set(self.all_files.layout_number)        
-        self.drop = OptionMenu(self,self.clicked,1,2,3,4,5,6,7,8,9,10)
+        self.drop = OptionMenu(self,self.clicked,0,1,2,3,4,5,6,7,8,9,10)
         self.drop.grid(row=6, column=1, sticky="nsew")
         self.drop.config(bg="grey", fg="white")
 
 
         # Make the buttons for editing chart template file locations
         for index,chart_template in enumerate(self.all_files.chart_templates):
-            self.button = tk.Button(self,text=chart_template, bg="dark slate grey",  fg="white", command = lambda j=index: self.edit_file(j))
+            self.button = tk.Button(self,text=chart_template, bg="dark slate grey",  fg="white", anchor="w", command = lambda j=index: self.edit_file(j))
             self.button.grid(row=index+7, column=1, sticky="nsew")
             self.buttons.append(self.button)
             #self.make_button(chart_type,self.edit_file,index,0)
@@ -138,6 +139,12 @@ class MainApp(tk.Tk):
         menu.add_cascade(label='Run', menu=run_menu)
         run_menu.add_command(label='Transfer', command=self.transfer_all)
 
+        # create help menu
+        help_menu = Menu(menu)
+        menu.add_cascade(label='Help', menu=help_menu)
+        help_menu.add_command(label='Help', command=self.show_help)
+        help_menu.add_command(label="About", command=self.show_about)
+
     def show_files(self):
         if self.show_defaults==False:
             self.geometry('400x392')
@@ -155,9 +162,21 @@ class MainApp(tk.Tk):
         # open file dialog to select new template file
         self.all_files.chart_templates[index] = os.path.split(filedialog.askopenfilename(title="Select a File",initialdir=self.all_files.chart_template_location, filetypes=(("MS Chart template files","*.crtx"),("All types","*.*"))))[1]
         self.buttons[index+5].configure(text=self.all_files.chart_templates[index])
-        
+
+    def show_about(self):
+        #display about text
+        from tkinter import messagebox
+        from help_text import about
+        messagebox.showinfo("About",about)   
+
+    def show_help(self):
+        #display help text
+        from tkinter import messagebox
+        from help_text import help
+        messagebox.showinfo("Help",help)    
    
     def save_defaults(self):
+        self.all_files.layout_number=self.clicked.get() # reset the layout number if the default is saved w/o running the transfer
         self.all_files.write_defaults()
 
     def edit_defaults(self):
@@ -166,13 +185,13 @@ class MainApp(tk.Tk):
 
     def make_button(self,main_text,cmd,row,col,bg_col="grey",fg_col="white"):
         #Make a tk button and place in the correct location
-        self.button = tk.Button(text=main_text, bg=bg_col, fg=fg_col, command = cmd)
+        self.button = tk.Button(text=main_text, bg=bg_col, fg=fg_col, command = cmd,anchor="w")
         self.buttons.append(self.button)
         self.button.grid(row=row, column=col, sticky="nsew")
 
     def make_label(self,main_text,row,col,length,bg_col="grey",fg_col="white"):
         #make a tk label and place it in the correct location
-        label = tk.Label(text=main_text, bg=bg_col, fg=fg_col, wraplength = length,relief="ridge")
+        label = tk.Label(text=main_text, bg=bg_col, fg=fg_col, wraplength = length,relief="ridge",anchor="w")
         label.grid(row=row, column=col, sticky="nsew")
 
     # open file menu to select template file - just a plane pptx file rather than a pptm
@@ -200,7 +219,7 @@ class MainApp(tk.Tk):
     # tests whether there is a template, a data file and a output destination
     def transfer_all(self):
         if self.all_files.output_name=="" or self.all_files.data_name =="" or self.all_files.template_name =="":
-            self.make_label("Please select a file for each type",1,0,150)
+            self.make_label("Missing file",1,0,150)
         else:
             self.execute_transfer()
 
@@ -291,14 +310,19 @@ class MainApp(tk.Tk):
         main_presentation = self.open_presentation(self.all_files.template_name)
 
         #create all the charts from the chart index
-        chart_sheets = chart_index_df['sheets'].values.tolist() # put the sheet names into list
-        chart_types = chart_index_df['type'].values.tolist() #put chart types into list
-        chart_labels = chart_index_df['label'].values.tolist() # put the chart label type into list (numbers or counts are num and % are per)
+        try:
+            chart_sheets = chart_index_df['sheets'].values.tolist() # put the sheet names into list
+            chart_types = chart_index_df['type'].values.tolist() #put chart types into list
+            chart_labels = chart_index_df['label'].values.tolist() # put the chart label type into list (numbers or counts are num and % are per)
+            self.make_label("Data file valid",1,0,150)
+        except:
+            self.make_label("Data file not valid",1,0,150)
+            return
+        
+        
         num_of_rows = []
         num_of_cols = []
-       
-
-
+ 
         #loop in each chart sheet and load in data frame for each chart sheet
         #convert and add chart of the correct chart_type
         for index,sheet in enumerate(chart_sheets):
@@ -311,7 +335,7 @@ class MainApp(tk.Tk):
           
         #save the presentation in output_name - note this saves over any existing file
         main_presentation.save(self.all_files.output_name)
-        #Cycle through all the charts and apply the correct chart template
+        #Cycle through all the charts in the presentation and apply the correct chart template from excel index sheet
         self.apply_chart_templates(chart_types,chart_labels,num_of_cols,num_of_rows)
 
         # Send done message when complete
